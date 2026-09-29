@@ -163,54 +163,81 @@ class TaskUpdate(BaseModel):
 
 @app.put("/tasks/{id}")
 def update_task(id: int, task_data: TaskUpdate):
-    # Find the task
-    task = None
-
-    for existing_task in tasks:
-        if existing_task["id"] == id:
-            task = existing_task
-            break
-
-    # Task not found
-    if task is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Task {id} not found"
-        )
-
-    # At least one field must be provided
     if task_data.title is None and task_data.done is None:
         raise HTTPException(
             status_code=400,
             detail="Request body must contain title or done"
         )
 
-    # Update title if provided
+    connection = get_db()
+
+    existing_task = connection.execute(
+        "SELECT id, title, done FROM tasks WHERE id = ?",
+        (id,)
+    ).fetchone()
+
+    if existing_task is None:
+        connection.close()
+
+        raise HTTPException(
+            status_code=404,
+            detail=f"Task {id} not found"
+        )
+
+    title = existing_task["title"]
+    done = existing_task["done"]
+
     if task_data.title is not None:
         title = task_data.title.strip()
 
         if not title:
+            connection.close()
+
             raise HTTPException(
                 status_code=400,
                 detail="Task title cannot be empty"
             )
 
-        task["title"] = title
-
-    # Update done if provided
     if task_data.done is not None:
-        task["done"] = task_data.done
+        done = int(task_data.done)
 
-    return task
-
-@app.delete("/tasks/{id}",status_code=status.HTTP_204_NO_CONTENT)
-def delete_task(id: int):
-    for index, task in enumerate(tasks):
-        if task["id"] == id:
-            tasks.pop(index)
-            return
-
-    raise HTTPException(
-        status_code=404,
-        detail=f"Task {id} not found"
+    connection.execute(
+        "UPDATE tasks SET title = ?, done = ? WHERE id = ?",
+        (title, done, id)
     )
+
+    connection.commit()
+    connection.close()
+
+    return {
+        "id": id,
+        "title": title,
+        "done": bool(done)
+    }
+
+@app.delete(f"/tasks/{id}", status_code=204)
+def delete_task(id: int):
+    connection = get_db()
+
+    existing_task = connection.execute(
+        "SELECT id FROM tasks WHERE id = ?",
+        (id,)
+    ).fetchone()
+
+    if existing_task is None:
+        connection.close()
+
+        raise HTTPException(
+            status_code=404,
+            detail=f"Task {id} not found"
+        )
+
+    connection.execute(
+        "DELETE FROM tasks WHERE id = ?",
+        (id,)
+    )
+
+    connection.commit()
+    connection.close()
+
+    return
