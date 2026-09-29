@@ -117,7 +117,6 @@ class TaskCreate(BaseModel):
 
 @app.post("/tasks", status_code=201)
 def create_task(task_data: TaskCreate):
-
     if task_data.title is None:
         raise HTTPException(
             status_code=400,
@@ -132,21 +131,24 @@ def create_task(task_data: TaskCreate):
             detail="Task title cannot be empty"
         )
 
-    if tasks:
-        next_id = max(task["id"] for task in tasks) + 1
-    else:
-        next_id = 1
+    connection = get_db()
 
-    new_task = {
-        "id": next_id,
+    cursor = connection.execute(
+        "INSERT INTO tasks (title, done) VALUES (?, ?)",
+        (title, 0)
+    )
+
+    connection.commit()
+
+    task_id = cursor.lastrowid
+
+    connection.close()
+
+    return {
+        "id": task_id,
         "title": title,
         "done": False
     }
-
-    tasks.append(new_task)
-
-    return new_task
-
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = Field(
