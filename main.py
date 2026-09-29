@@ -64,15 +64,49 @@ tasks = [
 
 @app.get("/tasks")
 def get_tasks():
+    connection = get_db()
+
+    rows = connection.execute(
+        "SELECT id, title, done FROM tasks ORDER BY id"
+    ).fetchall()
+
+    connection.close()
+
+    tasks = [
+        {
+            "id": row["id"],
+            "title": row["title"],
+            "done": bool(row["done"])
+        }
+        for row in rows
+    ]
+
     return tasks
 
-@app.get('/tasks/{id}')
-async def get_task(id: int):
-    for task in tasks:
-        if task["id"] == id:
-            return task
-    else:
-        raise HTTPException(status_code=404, detail=f"Task {id} not found")
+@app.get("/tasks/{id}")
+def get_task(id: int):
+    connection = get_db()
+
+    row = connection.execute(
+        "SELECT id, title, done FROM tasks WHERE id = ?",
+        (id,)
+    ).fetchone()
+
+    connection.close()
+
+    if row is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Task {id} not found"
+        )
+
+    return {
+        "id": row["id"],
+        "title": row["title"],
+        "done": bool(row["done"])
+    }
+
+
 
 class TaskCreate(BaseModel):
     title: Optional[str] = Field(
