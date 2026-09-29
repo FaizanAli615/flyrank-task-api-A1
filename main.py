@@ -2,8 +2,39 @@ from typing import Optional
 
 from fastapi import FastAPI,HTTPException,status
 from pydantic import BaseModel, Field
+import sqlite3
 
 app=FastAPI()
+DATABASE='tasks.db'
+
+
+
+def get_db():
+    connection=sqlite3.connect(DATABASE)
+    connection.row_factory=sqlite3.Row
+    return connection
+
+def init_db():
+    connection=get_db()
+    connection.execute(''' Create table if not exists tasks(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,done INTEGER NOT NULL DEFAULT 0) ''')
+
+
+def seed_tasks():
+    connection=get_db()
+
+    count=connection.execute('select count(*) from tasks').fetchone()[0]
+    if count==0:
+        connection.executemany('''Insert into tasks(title,done) VALUES(?,?)''',[
+                ("Learn FastAPI", 0),
+                ("Build CRUD API", 0),
+                ("Test API with Swagger", 1),
+            ] )
+
+        connection.commit()
+    connection.close()
+
+init_db()
+seed_tasks()
 
 @app.get('/')
 async def root():
