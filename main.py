@@ -81,3 +81,69 @@ def create_task(task_data: TaskCreate):
     tasks.append(new_task)
 
     return new_task
+
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = Field(
+        default=None,
+        description="New task title"
+    )
+    done: Optional[bool] = Field(
+        default=None,
+        description="Whether the task is completed"
+    )
+
+
+@app.put("/tasks/{id}")
+def update_task(id: int, task_data: TaskUpdate):
+    # Find the task
+    task = None
+
+    for existing_task in tasks:
+        if existing_task["id"] == id:
+            task = existing_task
+            break
+
+    # Task not found
+    if task is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Task {id} not found"
+        )
+
+    # At least one field must be provided
+    if task_data.title is None and task_data.done is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Request body must contain title or done"
+        )
+
+    # Update title if provided
+    if task_data.title is not None:
+        title = task_data.title.strip()
+
+        if not title:
+            raise HTTPException(
+                status_code=400,
+                detail="Task title cannot be empty"
+            )
+
+        task["title"] = title
+
+    # Update done if provided
+    if task_data.done is not None:
+        task["done"] = task_data.done
+
+    return task
+
+@app.delete("/tasks/{id}",status_code=status.HTTP_204_NO_CONTENT)
+def delete_task(id: int):
+    for index, task in enumerate(tasks):
+        if task["id"] == id:
+            tasks.pop(index)
+            return
+
+    raise HTTPException(
+        status_code=404,
+        detail=f"Task {id} not found"
+    )
