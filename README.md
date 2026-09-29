@@ -28,3 +28,12 @@ A simple CRUD API built with Python and FastAPI for the FlyRank Internship Backe
 ```bash
 git clone https://github.com/FaizanAli615?tab=repositories
 cd flyrank-task-api
+
+## Stage 4 — SQLite Verification
+
+I verified that changes made directly in DB Browser for SQLite are immediately visible through the FastAPI API without restarting the server.
+
+Example SQL query:
+
+```sql
+SELECT * FROM tasks WHERE done = 1;
