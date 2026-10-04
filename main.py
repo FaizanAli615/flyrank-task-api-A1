@@ -69,24 +69,6 @@ async def root():
 async def health():
     return {'status': 'OK'}
 
-# tasks = [
-#     {
-#         "id": 1,
-#         "title": "Learn FastAPI",
-#         "done": False
-#     },
-#     {
-#         "id": 2,
-#         "title": "Build CRUD API",
-#         "done": False
-#     },
-#     {
-#         "id": 3,
-#         "title": "Test API with Swagger",
-#         "done": True
-#     }
-# ]
-
 @app.get("/tasks")
 def get_tasks():
     connection = get_db()
@@ -159,13 +141,12 @@ def create_task(task_data: TaskCreate):
     connection = get_db()
 
     cursor = connection.execute(
-        "INSERT INTO tasks (title, done) VALUES (?, ?)",
-        (title, 0)
+        "INSERT INTO tasks (title, done) VALUES (%s, %s) RETURNING id",
+        (title, False)
     )
 
+    task_id = cursor.fetchone()[0]
     connection.commit()
-
-    task_id = cursor.lastrowid
 
     connection.close()
 
@@ -197,7 +178,7 @@ def update_task(id: int, task_data: TaskUpdate):
     connection = get_db()
 
     existing_task = connection.execute(
-        "SELECT id, title, done FROM tasks WHERE id = ?",
+        "SELECT id, title, done FROM tasks WHERE id = %s",
         (id,)
     ).fetchone()
 
@@ -209,8 +190,8 @@ def update_task(id: int, task_data: TaskUpdate):
             detail=f"Task {id} not found"
         )
 
-    title = existing_task["title"]
-    done = existing_task["done"]
+    title = existing_task[1]
+    done = existing_task[2]
 
     if task_data.title is not None:
         title = task_data.title.strip()
@@ -224,10 +205,10 @@ def update_task(id: int, task_data: TaskUpdate):
             )
 
     if task_data.done is not None:
-        done = int(task_data.done)
+        done = task_data.done
 
     connection.execute(
-        "UPDATE tasks SET title = ?, done = ? WHERE id = ?",
+        "UPDATE tasks SET title = %s, done = %s WHERE id = %s",
         (title, done, id)
     )
 
@@ -237,7 +218,7 @@ def update_task(id: int, task_data: TaskUpdate):
     return {
         "id": id,
         "title": title,
-        "done": bool(done)
+        "done": done
     }
 
 @app.delete(f"/tasks/{id}", status_code=204)
@@ -245,7 +226,7 @@ def delete_task(id: int):
     connection = get_db()
 
     existing_task = connection.execute(
-        "SELECT id FROM tasks WHERE id = ?",
+        "SELECT id FROM tasks WHERE id = %s",
         (id,)
     ).fetchone()
 
@@ -258,7 +239,7 @@ def delete_task(id: int):
         )
 
     connection.execute(
-        "DELETE FROM tasks WHERE id = ?",
+        "DELETE FROM tasks WHERE id = %s",
         (id,)
     )
 
