@@ -92,16 +92,16 @@ def get_tasks():
     connection = get_db()
 
     rows = connection.execute(
-        "SELECT id, title, done FROM tasks ORDER BY id"
+        """SELECT id, title, done FROM tasks ORDER BY id"""
     ).fetchall()
 
     connection.close()
 
     tasks = [
         {
-            "id": row["id"],
-            "title": row["title"],
-            "done": bool(row["done"])
+            "id": row[0],
+            "title": row[1],
+            "done": row[2]
         }
         for row in rows
     ]
@@ -113,7 +113,7 @@ def get_task(id: int):
     connection = get_db()
 
     row = connection.execute(
-        "SELECT id, title, done FROM tasks WHERE id = ?",
+        "SELECT id, title, done FROM tasks WHERE id = %s",
         (id,)
     ).fetchone()
 
@@ -126,9 +126,9 @@ def get_task(id: int):
         )
 
     return {
-        "id": row["id"],
-        "title": row["title"],
-        "done": bool(row["done"])
+        "id": row[0],
+        "title": row[1],
+        "done": row[2]
     }
 
 
