@@ -1,0 +1,32 @@
+services:
+  api:
+    build: .
+    env_file:
+      - .env
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgres://postgres:dev@db:5432/tasks
+    depends_on:
+      db:
+        condition: service_healthy
+
+
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: tasks
+    ports:
+      - "5432:5432"
+    volumes:
+      - taskdata:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d tasks" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  taskdata:
