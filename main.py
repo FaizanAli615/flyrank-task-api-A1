@@ -1,40 +1,65 @@
+import os
+import psycopg
+from dotenv import load_dotenv
 from typing import Optional
 
 from fastapi import FastAPI,HTTPException,status
 from pydantic import BaseModel, Field
-import sqlite3
 
+
+load_dotenv()
 app=FastAPI()
-DATABASE='tasks.db'
+DATABASE_URL=os.getenv("DATABASE_URL")
 
 
 
 def get_db():
-    connection=sqlite3.connect(DATABASE)
-    connection.row_factory=sqlite3.Row
-    return connection
+    return psycopg.connect(DATABASE_URL)
+
 
 def init_db():
-    connection=get_db()
-    connection.execute(''' Create table if not exists tasks(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,done INTEGER NOT NULL DEFAULT 0) ''')
+    connection = get_db()
+
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS tasks (
+            id SERIAL PRIMARY KEY,
+            title TEXT NOT NULL,
+            done BOOLEAN NOT NULL DEFAULT FALSE
+        )
+    """)
+
+    connection.commit()
+    connection.close()
 
 
 def seed_tasks():
-    connection=get_db()
+    connection = get_db()
 
-    count=connection.execute('select count(*) from tasks').fetchone()[0]
-    if count==0:
-        connection.executemany('''Insert into tasks(title,done) VALUES(?,?)''',[
-                ("Learn FastAPI", 0),
-                ("Build CRUD API", 0),
-                ("Test API with Swagger", 1),
-            ] )
+    with connection.cursor() as cursor:
+        count = cursor.execute(
+            "SELECT COUNT(*) FROM tasks"
+        ).fetchone()[0]
 
-        connection.commit()
+        if count == 0:
+            cursor.executemany(
+                "INSERT INTO tasks (title, done) VALUES (%s, %s)",
+                [
+                    ("Learn FastAPI", False),
+                    ("Build CRUD API", False),
+                    ("Test API with Swagger", True),
+                ],
+            )
+
+    connection.commit()
     connection.close()
+
 
 init_db()
 seed_tasks()
+
+
+# ------------
+
 
 @app.get('/')
 async def root():
@@ -44,23 +69,23 @@ async def root():
 async def health():
     return {'status': 'OK'}
 
-tasks = [
-    {
-        "id": 1,
-        "title": "Learn FastAPI",
-        "done": False
-    },
-    {
-        "id": 2,
-        "title": "Build CRUD API",
-        "done": False
-    },
-    {
-        "id": 3,
-        "title": "Test API with Swagger",
-        "done": True
-    }
-]
+# tasks = [
+#     {
+#         "id": 1,
+#         "title": "Learn FastAPI",
+#         "done": False
+#     },
+#     {
+#         "id": 2,
+#         "title": "Build CRUD API",
+#         "done": False
+#     },
+#     {
+#         "id": 3,
+#         "title": "Test API with Swagger",
+#         "done": True
+#     }
+# ]
 
 @app.get("/tasks")
 def get_tasks():
